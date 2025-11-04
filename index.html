@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Генератор резюме на базе LLM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" />
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      /* Override prism-okaidia theme background to be transparent */
+      /* so the editor container's background is visible */
+      code[class*="language-"],
+      pre[class*="language-"] {
+        background: none !important;
+        text-shadow: none !important;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
+    "react-simple-code-editor": "https://aistudiocdn.com/react-simple-code-editor@^0.13.1",
+    "prismjs": "https://aistudiocdn.com/prismjs@^1.29.0",
+    "prismjs/": "https://aistudiocdn.com/prismjs@^1.29.0/"
+  }
+}
+</script>
+</head>
+  <body class="bg-slate-900 text-slate-200">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
