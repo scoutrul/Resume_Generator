@@ -1,4 +1,4 @@
-import React, { useState, ReactNode, useEffect, useRef, useMemo } from 'react';
+import React, { useState, ReactNode, useMemo } from 'react';
 import { CandidateProfile, Experience, HardSkill, Project, Education, SoftSkill } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -9,8 +9,8 @@ interface VisualProfileBuilderProps {
   setProfile: (profile: CandidateProfile) => void;
 }
 
-const Section: React.FC<{ title: string; children: ReactNode }> = ({ title, children }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const Section: React.FC<{ title: string; children: ReactNode, defaultOpen?: boolean }> = ({ title, children, defaultOpen = false }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
     <div className="border-b border-slate-700 last:border-b-0 py-4">
       <button onClick={() => setIsOpen(!isOpen)} className="w-full text-left">
@@ -43,28 +43,8 @@ const LEVEL_ORDER: { [key: string]: number } = {
 };
 
 export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ profile, setProfile }) => {
-  const timeoutRef = useRef<number | null>(null);
   const [newCategory, setNewCategory] = useState('');
   const [editingCategory, setEditingCategory] = useState<{ oldName: string; newName: string } | null>(null);
-
-  useEffect(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = window.setTimeout(() => {
-      try {
-        localStorage.setItem('candidateProfile', JSON.stringify(profile));
-      } catch (error) {
-        console.error("Failed to save profile to localStorage", error);
-      }
-    }, 500);
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [profile]);
 
   const handlePersonalInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setProfile({ ...profile, personalInfo: { ...profile.personalInfo, [e.target.name]: e.target.value } });
@@ -111,21 +91,22 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
   
   const handleAddSoftSkill = () => {
     // Fix: Defensively check if softSkills is an array to prevent crashes.
-    const currentSkills = Array.isArray(profile.skills.softSkills) ? profile.skills.softSkills : [];
-    const newSkills = [...currentSkills, { name: '', level: '' }];
-    setProfile({ ...profile, skills: { ...profile.skills, softSkills: newSkills } });
+    const oldSkills = profile.skills || { hardSkills: {}, softSkills: [] };
+    const currentSoftSkills = Array.isArray(oldSkills.softSkills) ? oldSkills.softSkills : [];
+    const newSoftSkills = [...currentSoftSkills, { name: '', level: '' }];
+    setProfile({ ...profile, skills: { ...oldSkills, softSkills: newSoftSkills } });
   };
   
   const handleRemoveSoftSkill = (index: number) => {
       // Fix: Defensively check if softSkills is an array to prevent crashes.
-      if (!Array.isArray(profile.skills.softSkills)) return;
+      if (!profile.skills || !Array.isArray(profile.skills.softSkills)) return;
       const newSkills = profile.skills.softSkills.filter((_, i) => i !== index);
       setProfile({ ...profile, skills: { ...profile.skills, softSkills: newSkills } });
   };
   
   const handleSoftSkillChange = (index: number, field: keyof SoftSkill, value: string) => {
       // Fix: Defensively check if softSkills is an array to prevent crashes.
-      if (!Array.isArray(profile.skills.softSkills)) return;
+      if (!profile.skills || !Array.isArray(profile.skills.softSkills)) return;
       const newSkills = profile.skills.softSkills.map((skill, i) => i === index ? { ...skill, [field]: value } : skill);
       setProfile({ ...profile, skills: { ...profile.skills, softSkills: newSkills } });
   };
@@ -199,15 +180,20 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
 
   const allSkillNames = useMemo(() => {
     const names = new Set<string>();
-    Object.values(profile.skills.hardSkills).forEach(categorySkills => {
-        categorySkills.forEach(skill => {
-            if(skill.name) names.add(skill.name);
+    // Fix: Defensively iterate over hardSkills, checking if values are arrays.
+    if (profile.skills?.hardSkills && typeof profile.skills.hardSkills === 'object') {
+        Object.values(profile.skills.hardSkills).forEach(categorySkills => {
+            if (Array.isArray(categorySkills)) {
+                categorySkills.forEach(skill => {
+                    if (skill?.name) names.add(skill.name);
+                });
+            }
         });
-    });
+    }
     // Fix: Defensively check if softSkills is an array before iterating.
-    if (Array.isArray(profile.skills.softSkills)) {
+    if (Array.isArray(profile.skills?.softSkills)) {
       profile.skills.softSkills.forEach(skill => {
-        if (skill.name) names.add(skill.name);
+        if (skill?.name) names.add(skill.name);
       });
     }
     return Array.from(names);
@@ -219,7 +205,7 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
         {allSkillNames.map(name => <option key={name} value={name} />)}
       </datalist>
 
-      <Section title="Личная информация">
+      <Section title="Личная информация" defaultOpen={true}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormRow label="Полное имя"><Input name="name" value={profile.personalInfo.name} onChange={handlePersonalInfoChange} /></FormRow>
             <FormRow label="Должность"><Input name="title" value={profile.personalInfo.title} onChange={handlePersonalInfoChange} /></FormRow>
@@ -232,11 +218,11 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
         </div>
       </Section>
 
-      <Section title="Профессиональная сводка">
+      <Section title="Профессиональная сводка" defaultOpen={false}>
         <FormRow label="Краткое описание"><Textarea name="summary" value={profile.summary} onChange={handleSimpleChange} /></FormRow>
       </Section>
       
-      <Section title="Опыт работы">
+      <Section title="Опыт работы" defaultOpen={false}>
         {profile.experience.map((exp, index) => (
             <div key={index} className="p-3 bg-slate-700/50 rounded-md space-y-3 mb-3 relative">
                  <button onClick={() => handleRemoveItem('experience', index)} className="absolute top-2 right-2 p-1 text-slate-400 hover:text-red-400"><TrashIcon className="w-4 h-4" /></button>
@@ -253,11 +239,12 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
          <button onClick={() => handleAddItem<Experience>('experience', {company: '', location: '', title: '', period: '', responsibilities: [], technologies: []})} className="flex items-center space-x-2 text-sky-400 hover:text-sky-300 text-sm font-semibold"><PlusIcon className="w-4 h-4" /><span>Добавить опыт</span></button>
       </Section>
 
-      <Section title="Навыки">
+      <Section title="Навыки" defaultOpen={false}>
         <h4 className="font-semibold mb-2">Профессиональные навыки (Hard Skills)</h4>
         <p className="text-xs text-slate-400 mb-3">Подсказка: поля ввода навыков предлагают автодополнение на основе уже добавленных в профиль.</p>
         <div className="space-y-4">
-          {Object.entries(profile.skills.hardSkills).map(([category, skills]) => (
+          {/* Fix: Add checks for profile.skills and profile.skills.hardSkills to prevent crashes. */}
+          {profile.skills?.hardSkills && Object.entries(profile.skills.hardSkills).map(([category, skills]) => (
             <div key={category} className="p-3 bg-slate-700/50 rounded-md">
               <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-4">
@@ -280,7 +267,8 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
                     <button onClick={() => handleRemoveCategory(category)} className="p-1 text-slate-400 hover:text-red-400"><TrashIcon className="w-4 h-4" /></button>
                 </div>
               </div>
-              {skills.map((skill, index) => (
+              {/* Fix: Add check to ensure skills is an array before mapping. */}
+              {Array.isArray(skills) && skills.map((skill, index) => (
                 <div key={index} className="flex items-center gap-2 mb-2">
                   <Input placeholder="Навык (напр., React)" value={skill.name} onChange={e => handleSkillChangeInCategory(category, index, 'name', e.target.value)} list="skills-list" />
                   <Input placeholder="Уровень (напр., Эксперт)" value={skill.level} onChange={e => handleSkillChangeInCategory(category, index, 'level', e.target.value)} />
@@ -299,7 +287,7 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
          <h4 className="font-semibold mb-2">Личностные качества (Soft Skills)</h4>
          <div className="space-y-2">
             {/* Fix: Defensively check if softSkills is an array before mapping. */}
-            {Array.isArray(profile.skills.softSkills) && profile.skills.softSkills.map((skill, index) => (
+            {Array.isArray(profile.skills?.softSkills) && profile.skills.softSkills.map((skill, index) => (
                 <div key={index} className="flex items-center gap-2">
                     <Input placeholder="Навык (напр., Коммуникация)" value={skill.name} onChange={e => handleSoftSkillChange(index, 'name', e.target.value)} list="skills-list" />
                     <Input placeholder="Уровень (напр., Продвинутый)" value={skill.level} onChange={e => handleSoftSkillChange(index, 'level', e.target.value)} />
@@ -310,7 +298,7 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
          <button onClick={handleAddSoftSkill} className="flex items-center space-x-2 text-sky-400 hover:text-sky-300 text-sm font-semibold mt-3"><PlusIcon className="w-4 h-4" /><span>Добавить качество</span></button>
       </Section>
 
-      <Section title="Проекты">
+      <Section title="Проекты" defaultOpen={false}>
         {profile.projects.map((project, index) => (
             <div key={index} className="p-3 bg-slate-700/50 rounded-md space-y-3 mb-3 relative">
                 <button onClick={() => handleRemoveItem('projects', index)} className="absolute top-2 right-2 p-1 text-slate-400 hover:text-red-400"><TrashIcon className="w-4 h-4" /></button>
@@ -325,7 +313,7 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
         <button onClick={() => handleAddItem<Project>('projects', {name: '', description: '', technologies: [], link: ''})} className="flex items-center space-x-2 text-sky-400 hover:text-sky-300 text-sm font-semibold"><PlusIcon className="w-4 h-4" /><span>Добавить проект</span></button>
       </Section>
 
-      <Section title="Образование">
+      <Section title="Образование" defaultOpen={false}>
         <div className="space-y-4">
             <FormRow label="Степень/Квалификация">
                 <Input name="degree" value={profile.education.degree} onChange={handleEducationChange} placeholder="Например, Бакалавр наук, Компьютерные науки" />
@@ -339,7 +327,7 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
         </div>
       </Section>
 
-      <Section title="Философия работы">
+      <Section title="Философия работы" defaultOpen={false}>
         <FormRow label="Ваш подход к работе">
             <Textarea name="philosophy" value={profile.philosophy} onChange={handleSimpleChange} />
         </FormRow>

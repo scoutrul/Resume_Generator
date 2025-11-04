@@ -1,8 +1,8 @@
 import React from 'react';
-import { ProfileInputMode, CandidateProfile } from '../types';
+import { ProfileInputMode, CandidateProfile, CoverLetterLength } from '../types';
 import { VisualProfileBuilder } from './profile/VisualProfileBuilder';
 import { JsonEditor } from './profile/JsonEditor';
-import { MOCK_DATA } from '../constants';
+import { PRESETS } from '../constants';
 
 interface InputSectionProps {
   vacancyText: string;
@@ -11,6 +11,8 @@ interface InputSectionProps {
   setProfileInputMode: (mode: ProfileInputMode) => void;
   candidateProfile: CandidateProfile;
   setCandidateProfile: (profile: CandidateProfile) => void;
+  coverLetterLength: CoverLetterLength;
+  setCoverLetterLength: (length: CoverLetterLength) => void;
   onGenerate: () => void;
   isLoading: boolean;
 }
@@ -39,30 +41,48 @@ export const InputSection: React.FC<InputSectionProps> = ({
   setProfileInputMode,
   candidateProfile,
   setCandidateProfile,
+  coverLetterLength,
+  setCoverLetterLength,
   onGenerate,
   isLoading,
 }) => {
   const canGenerate = vacancyText.trim();
 
+  const handlePresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedPreset = PRESETS.find(p => p.name === e.target.value);
+    if (selectedPreset) {
+      setVacancyText(selectedPreset.vacancy);
+      try {
+        const profileData = JSON.parse(selectedPreset.profile);
+        setCandidateProfile(profileData);
+      } catch (err) {
+        console.error("Failed to parse preset profile", err);
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col space-y-6 h-full">
+        <div className="flex justify-between items-center bg-slate-800/50 p-3 rounded-md border border-slate-700">
+            <label htmlFor="preset-selector" className="font-semibold text-slate-300">
+                Быстрый старт (выбрать пример)
+            </label>
+            <select
+                id="preset-selector"
+                onChange={handlePresetChange}
+                defaultValue=""
+                className="bg-slate-700 border border-slate-600 rounded-md text-sm p-2 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-colors"
+            >
+                <option value="" disabled>Выбрать роль...</option>
+                {PRESETS.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+            </select>
+        </div>
+
       <div className="flex flex-col flex-grow min-h-[250px]">
         <div className="flex justify-between items-center mb-2">
             <label htmlFor="vacancy" className="font-semibold text-slate-300">
             1. Вставьте описание вакансии
             </label>
-            <select
-                onChange={(e) => {
-                    if (e.target.value) {
-                        setVacancyText(e.target.value);
-                    }
-                }}
-                defaultValue=""
-                className="bg-slate-700 border border-slate-600 rounded-md text-sm p-1 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-colors"
-            >
-                <option value="" disabled>Выбрать пример...</option>
-                {MOCK_DATA.vacancies.map(v => <option key={v.name} value={v.data}>{v.name}</option>)}
-            </select>
         </div>
         <textarea
           id="vacancy"
@@ -76,23 +96,6 @@ export const InputSection: React.FC<InputSectionProps> = ({
       <div className="flex flex-col flex-grow min-h-[350px]">
         <div className="mb-2 flex items-center justify-between">
            <h2 className="font-semibold text-slate-300">2. Укажите данные кандидата</h2>
-           <select
-                onChange={(e) => {
-                    if (e.target.value) {
-                        try {
-                            const profileData = JSON.parse(e.target.value);
-                            setCandidateProfile(profileData);
-                        } catch (err) {
-                            console.error("Failed to parse mock profile", err);
-                        }
-                    }
-                }}
-                defaultValue=""
-                className="bg-slate-700 border border-slate-600 rounded-md text-sm p-1 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-colors"
-            >
-                <option value="" disabled>Выбрать профиль...</option>
-                {MOCK_DATA.profiles.map(p => <option key={p.name} value={p.data}>{p.name}</option>)}
-            </select>
         </div>
         <div className="flex border-b border-slate-700">
             <TabButton label="Визуальный редактор" isActive={profileInputMode === 'visual'} onClick={() => setProfileInputMode('visual')} />
@@ -104,7 +107,22 @@ export const InputSection: React.FC<InputSectionProps> = ({
         </div>
       </div>
 
-      <div className="pt-2">
+      <div className="pt-2 space-y-4">
+        <div className="flex items-center justify-between gap-4">
+            <label htmlFor="cover-letter-length" className="font-medium text-slate-300 whitespace-nowrap">
+                Длина сопроводительного письма
+            </label>
+            <select
+                id="cover-letter-length"
+                value={coverLetterLength}
+                onChange={(e) => setCoverLetterLength(e.target.value as CoverLetterLength)}
+                className="bg-slate-700 border border-slate-600 rounded-md text-sm p-2 focus:ring-1 focus:ring-sky-500 focus:outline-none transition-colors w-full max-w-xs"
+            >
+                <option value="short">Короткое (≈2-3 абзаца)</option>
+                <option value="medium">Среднее (≈3-4 абзаца)</option>
+                <option value="long">Длинное (≈4-5 абзацев)</option>
+            </select>
+        </div>
         <button
           onClick={onGenerate}
           disabled={isLoading || !canGenerate}

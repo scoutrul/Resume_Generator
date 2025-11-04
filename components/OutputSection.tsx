@@ -59,36 +59,129 @@ const simpleMarkdownToHtml = (markdown: string): string => {
     return htmlLines.join('');
 };
 
+const handleSaveAsPdf = (htmlContent: string, documentTitle: string) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        alert('Пожалуйста, разрешите всплывающие окна для этой страницы, чтобы сохранить PDF.');
+        return;
+    }
+    
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="ru">
+        <head>
+          <meta charset="UTF-8">
+          <title>${documentTitle}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400&family=Roboto:wght@400;700&display=swap');
+            
+            body {
+              font-family: 'PT Serif', Georgia, serif;
+              line-height: 1.5;
+              color: #333;
+              background-color: #fff;
+              margin: 0;
+            }
 
-const OutputDisplay: React.FC<{ content: string; rawContent: string }> = ({ content, rawContent }) => {
-    const [copied, setCopied] = useState(false);
+            @page {
+              size: A4;
+              margin: 2cm;
+            }
+            
+            .page-container {
+              width: 210mm;
+              min-height: 297mm;
+              padding: 2cm;
+              box-sizing: border-box;
+            }
+            
+            h1, h2, h3, h4, h5, h6 {
+              font-family: 'Roboto', sans-serif;
+              font-weight: 700;
+              color: #000;
+              margin-top: 1.2em;
+              margin-bottom: 0.6em;
+              line-height: 1.2;
+            }
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(rawContent);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
+            h1 { font-size: 22pt; }
+            h2 { font-size: 16pt; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+            h3 { font-size: 12pt; text-transform: uppercase; letter-spacing: 0.5px; }
+            
+            p, li { 
+              font-size: 10pt; 
+              text-align: justify;
+            }
 
+            ul {
+              padding-left: 20px;
+              list-style-type: disc;
+            }
+            
+            strong {
+              font-weight: 700;
+            }
+
+            em {
+              font-style: italic;
+            }
+
+            @media print {
+              body { margin: 0; }
+              .page-container { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="page-container">${htmlContent}</div>
+          <script type="text/javascript">
+            setTimeout(function() {
+              window.print();
+              window.close();
+            }, 250);
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+};
+
+
+const OutputDisplay: React.FC<{ content: string }> = ({ content }) => {
     return (
-        <div className="relative h-full">
-            <button
-                onClick={handleCopy}
-                className="absolute top-2 right-2 p-2 bg-slate-700/50 rounded-md hover:bg-slate-600 transition-colors z-10"
-                title="Скопировать Markdown в буфер обмена"
-            >
-                <ClipboardIcon className="w-5 h-5" />
-            </button>
-            {copied && <span className="absolute top-12 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">Скопировано!</span>}
-            <div className="prose prose-invert prose-sm md:prose-base max-w-none p-4 h-full overflow-y-auto bg-slate-800 rounded-b-md"
-                dangerouslySetInnerHTML={{ __html: content }}
-            >
-            </div>
+        <div className="prose prose-invert prose-sm md:prose-base max-w-none p-4 h-full overflow-y-auto bg-slate-800 rounded-b-md"
+            dangerouslySetInnerHTML={{ __html: content }}
+        >
         </div>
     );
 };
 
+const ActionButton: React.FC<{ onClick: () => void; children: React.ReactNode; disabled?: boolean;}> = ({ onClick, children, disabled = false }) => (
+    <button
+        onClick={onClick}
+        disabled={disabled}
+        className="px-3 py-1 text-xs font-semibold bg-slate-700 text-slate-300 rounded-md hover:bg-slate-600 transition-colors disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed"
+    >
+        {children}
+    </button>
+);
+
 export const OutputSection: React.FC<OutputSectionProps> = ({ output, isLoading, error }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('resume');
+  const [resumeCopied, setResumeCopied] = useState(false);
+  const [coverLetterCopied, setCoverLetterCopied] = useState(false);
+
+  const handleCopy = (text: string, type: 'resume' | 'coverLetter') => {
+      if (!text) return;
+      navigator.clipboard.writeText(text);
+      if (type === 'resume') {
+          setResumeCopied(true);
+          setTimeout(() => setResumeCopied(false), 2000);
+      } else {
+          setCoverLetterCopied(true);
+          setTimeout(() => setCoverLetterCopied(false), 2000);
+      }
+  };
 
   const renderContent = () => {
     if (isLoading) {
@@ -123,25 +216,67 @@ export const OutputSection: React.FC<OutputSectionProps> = ({ output, isLoading,
       );
     }
 
+    const currentContent = activeTab === 'resume' ? output.resume : output.coverLetter;
+    const currentHtmlContent = simpleMarkdownToHtml(currentContent);
+    const documentTitle = activeTab === 'resume' ? 'Резюме' : 'Сопроводительное письмо';
+
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex border-b border-slate-700">
-          <TabButton
-            label="Адаптированное резюме"
-            isActive={activeTab === 'resume'}
-            onClick={() => setActiveTab('resume')}
-          />
-          <TabButton
-            label="Сопроводительное письмо"
-            isActive={activeTab === 'coverLetter'}
-            onClick={() => setActiveTab('coverLetter')}
-          />
+      <>
+        <div className="flex flex-col h-full">
+            <div className="flex justify-between items-center border-b border-slate-700 pr-2">
+                <div className="flex">
+                    <TabButton
+                        label="Адаптированное резюме"
+                        isActive={activeTab === 'resume'}
+                        onClick={() => setActiveTab('resume')}
+                    />
+                    <TabButton
+                        label="Сопроводительное письмо"
+                        isActive={activeTab === 'coverLetter'}
+                        onClick={() => setActiveTab('coverLetter')}
+                    />
+                </div>
+                <div className="flex items-center space-x-2">
+                    <ActionButton onClick={() => handleSaveAsPdf(currentHtmlContent, documentTitle)}>
+                        Сохранить как PDF
+                    </ActionButton>
+                </div>
+            </div>
+            <div className="flex-grow min-h-0 relative">
+                {activeTab === 'resume' && <OutputDisplay content={simpleMarkdownToHtml(output.resume)} />}
+                {activeTab === 'coverLetter' && <OutputDisplay content={simpleMarkdownToHtml(output.coverLetter)} />}
+
+                 <div className="absolute top-3 right-3 z-10 flex items-center space-x-2">
+                    {activeTab === 'resume' && (
+                        <>
+                            {resumeCopied && <span className="text-xs text-sky-400">Скопировано!</span>}
+                            <button 
+                                onClick={() => handleCopy(output.resume, 'resume')} 
+                                title="Копировать резюме" 
+                                className="p-2 bg-slate-700 text-slate-300 rounded-md hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={resumeCopied}
+                            >
+                                <ClipboardIcon className="w-4 h-4" />
+                            </button>
+                        </>
+                    )}
+                    {activeTab === 'coverLetter' && (
+                         <>
+                            {coverLetterCopied && <span className="text-xs text-sky-400">Скопировано!</span>}
+                            <button 
+                                onClick={() => handleCopy(output.coverLetter, 'coverLetter')} 
+                                title="Копировать письмо" 
+                                className="p-2 bg-slate-700 text-slate-300 rounded-md hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={coverLetterCopied}
+                            >
+                                <ClipboardIcon className="w-4 h-4" />
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
         </div>
-        <div className="flex-grow min-h-0">
-            {activeTab === 'resume' && <OutputDisplay content={simpleMarkdownToHtml(output.resume)} rawContent={output.resume} />}
-            {activeTab === 'coverLetter' && <OutputDisplay content={simpleMarkdownToHtml(output.coverLetter)} rawContent={output.coverLetter} />}
-        </div>
-      </div>
+      </>
     );
   };
   

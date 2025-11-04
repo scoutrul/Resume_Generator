@@ -1,11 +1,10 @@
-
-
 export interface GenerationOutput {
   resume: string;
   coverLetter: string;
 }
 
 export type ProfileInputMode = 'visual' | 'json';
+export type CoverLetterLength = 'short' | 'medium' | 'long';
 
 // Fix: Add missing QuickStartData interface export.
 export interface QuickStartData {
@@ -74,17 +73,16 @@ export interface CandidateProfile {
   philosophy: string;
 }
 
-export interface MockProfile {
-  name: string;
-  data: string; // JSON string of CandidateProfile
+export interface GenerationHistoryItem {
+  id: string;
+  timestamp: string;
+  vacancyText: string;
+  candidateProfile: CandidateProfile;
+  output: GenerationOutput;
 }
 
-export interface MockVacancy {
+export interface Preset {
   name: string;
-  data: string; // The text of the vacancy
-}
-
-export interface MockData {
-  profiles: MockProfile[];
-  vacancies: MockVacancy[];
+  profile: string; // JSON string of CandidateProfile
+  vacancy: string; // The text of the vacancy
 }
