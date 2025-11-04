@@ -3,6 +3,8 @@ import { ProfileInputMode, CandidateProfile, CoverLetterLength } from '../types'
 import { VisualProfileBuilder } from './profile/VisualProfileBuilder';
 import { JsonEditor } from './profile/JsonEditor';
 import { PRESETS } from '../constants';
+import { BadgeCheckIcon } from './icons/BadgeCheckIcon';
+import { CircleDotIcon } from './icons/CircleDotIcon';
 
 interface InputSectionProps {
   vacancyText: string;
@@ -61,6 +63,15 @@ export const InputSection: React.FC<InputSectionProps> = ({
     }
   };
 
+  const isVacancyComplete = vacancyText.trim().length > 0;
+  const isProfileComplete = 
+    !!candidateProfile &&
+    !!candidateProfile.personalInfo?.name?.trim() &&
+    !!candidateProfile.summary?.trim() &&
+    Array.isArray(candidateProfile.experience) &&
+    candidateProfile.experience.length > 0;
+
+
   return (
     <div className="flex flex-col space-y-6 h-full">
         <div className="flex justify-between items-center bg-slate-800/50 p-3 rounded-md border border-slate-700">
@@ -80,8 +91,11 @@ export const InputSection: React.FC<InputSectionProps> = ({
 
       <div className="flex flex-col flex-grow min-h-[250px]">
         <div className="flex justify-between items-center mb-2">
-            <label htmlFor="vacancy" className="font-semibold text-slate-300">
-            1. Вставьте описание вакансии
+            <label htmlFor="vacancy" className="font-semibold text-slate-300 flex items-center gap-2">
+              {isVacancyComplete 
+                ? <BadgeCheckIcon className="w-5 h-5 text-green-400"><title>Заполнено</title></BadgeCheckIcon>
+                : <CircleDotIcon className="w-5 h-5 text-slate-500"><title>Не заполнено</title></CircleDotIcon>}
+              <span>1. Вставьте описание вакансии</span>
             </label>
         </div>
         <textarea
@@ -95,7 +109,12 @@ export const InputSection: React.FC<InputSectionProps> = ({
 
       <div className="flex flex-col flex-grow min-h-[350px]">
         <div className="mb-2 flex items-center justify-between">
-           <h2 className="font-semibold text-slate-300">2. Укажите данные кандидата</h2>
+           <h2 className="font-semibold text-slate-300 flex items-center gap-2">
+            {isProfileComplete 
+                ? <BadgeCheckIcon className="w-5 h-5 text-green-400"><title>Заполнено</title></BadgeCheckIcon>
+                : <CircleDotIcon className="w-5 h-5 text-slate-500"><title>Не заполнено</title></CircleDotIcon>}
+            <span>2. Укажите данные кандидата</span>
+           </h2>
         </div>
         <div className="flex border-b border-slate-700">
             <TabButton label="Визуальный редактор" isActive={profileInputMode === 'visual'} onClick={() => setProfileInputMode('visual')} />

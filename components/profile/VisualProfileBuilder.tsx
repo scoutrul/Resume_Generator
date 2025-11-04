@@ -2,6 +2,8 @@ import React, { useState, ReactNode, useMemo } from 'react';
 import { CandidateProfile, Experience, HardSkill, Project, Education, SoftSkill } from '../../types';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
+import { BadgeCheckIcon } from '../icons/BadgeCheckIcon';
+import { CircleDotIcon } from '../icons/CircleDotIcon';
 
 interface VisualProfileBuilderProps {
   profile: CandidateProfile;
@@ -9,13 +11,19 @@ interface VisualProfileBuilderProps {
   setProfile: (profile: CandidateProfile) => void;
 }
 
-const Section: React.FC<{ title: string; children: ReactNode, defaultOpen?: boolean }> = ({ title, children, defaultOpen = false }) => {
+const Section: React.FC<{ title: string; children: ReactNode, defaultOpen?: boolean, isComplete?: boolean }> = ({ title, children, defaultOpen = false, isComplete = false }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
     <div className="border-b border-slate-700 last:border-b-0 py-4">
       <button onClick={() => setIsOpen(!isOpen)} className="w-full text-left">
         <h3 className="text-lg font-semibold text-slate-300 flex justify-between items-center">
-          {title}
+            <span className="flex items-center gap-2">
+                {isComplete 
+                  ? <BadgeCheckIcon className="w-5 h-5 text-green-400"><title>Раздел заполнен</title></BadgeCheckIcon>
+                  : <CircleDotIcon className="w-5 h-5 text-slate-500"><title>Раздел не заполнен</title></CircleDotIcon>
+                }
+                {title}
+            </span>
           <svg className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
         </h3>
       </button>
@@ -198,6 +206,15 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
     }
     return Array.from(names);
   }, [profile.skills.hardSkills, profile.skills.softSkills]);
+
+  // Completion logic for each section
+  const isPersonalInfoComplete = !!(profile.personalInfo?.name?.trim() && profile.personalInfo?.title?.trim());
+  const isSummaryComplete = !!(profile.summary?.trim());
+  const isExperienceComplete = Array.isArray(profile.experience) && profile.experience.length > 0 && profile.experience.some(exp => !!(exp.title?.trim() && exp.company?.trim()));
+  const isSkillsComplete = (profile.skills?.hardSkills && Object.values(profile.skills.hardSkills).some(cat => Array.isArray(cat) && cat.length > 0)) || (Array.isArray(profile.skills?.softSkills) && profile.skills.softSkills.length > 0);
+  const isProjectsComplete = Array.isArray(profile.projects) && profile.projects.length > 0 && profile.projects.some(p => !!p.name?.trim());
+  const isEducationComplete = !!(profile.education?.degree?.trim() && profile.education?.university?.trim());
+  const isPhilosophyComplete = !!(profile.philosophy?.trim());
   
   return (
     <div className="text-sm">
@@ -205,7 +222,7 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
         {allSkillNames.map(name => <option key={name} value={name} />)}
       </datalist>
 
-      <Section title="Личная информация" defaultOpen={true}>
+      <Section title="Личная информация" defaultOpen={true} isComplete={isPersonalInfoComplete}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormRow label="Полное имя"><Input name="name" value={profile.personalInfo.name} onChange={handlePersonalInfoChange} /></FormRow>
             <FormRow label="Должность"><Input name="title" value={profile.personalInfo.title} onChange={handlePersonalInfoChange} /></FormRow>
@@ -218,11 +235,11 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
         </div>
       </Section>
 
-      <Section title="Профессиональная сводка" defaultOpen={false}>
+      <Section title="Профессиональная сводка" defaultOpen={false} isComplete={isSummaryComplete}>
         <FormRow label="Краткое описание"><Textarea name="summary" value={profile.summary} onChange={handleSimpleChange} /></FormRow>
       </Section>
       
-      <Section title="Опыт работы" defaultOpen={false}>
+      <Section title="Опыт работы" defaultOpen={false} isComplete={isExperienceComplete}>
         {profile.experience.map((exp, index) => (
             <div key={index} className="p-3 bg-slate-700/50 rounded-md space-y-3 mb-3 relative">
                  <button onClick={() => handleRemoveItem('experience', index)} className="absolute top-2 right-2 p-1 text-slate-400 hover:text-red-400"><TrashIcon className="w-4 h-4" /></button>
@@ -239,7 +256,7 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
          <button onClick={() => handleAddItem<Experience>('experience', {company: '', location: '', title: '', period: '', responsibilities: [], technologies: []})} className="flex items-center space-x-2 text-sky-400 hover:text-sky-300 text-sm font-semibold"><PlusIcon className="w-4 h-4" /><span>Добавить опыт</span></button>
       </Section>
 
-      <Section title="Навыки" defaultOpen={false}>
+      <Section title="Навыки" defaultOpen={false} isComplete={isSkillsComplete}>
         <h4 className="font-semibold mb-2">Профессиональные навыки (Hard Skills)</h4>
         <p className="text-xs text-slate-400 mb-3">Подсказка: поля ввода навыков предлагают автодополнение на основе уже добавленных в профиль.</p>
         <div className="space-y-4">
@@ -298,7 +315,7 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
          <button onClick={handleAddSoftSkill} className="flex items-center space-x-2 text-sky-400 hover:text-sky-300 text-sm font-semibold mt-3"><PlusIcon className="w-4 h-4" /><span>Добавить качество</span></button>
       </Section>
 
-      <Section title="Проекты" defaultOpen={false}>
+      <Section title="Проекты" defaultOpen={false} isComplete={isProjectsComplete}>
         {profile.projects.map((project, index) => (
             <div key={index} className="p-3 bg-slate-700/50 rounded-md space-y-3 mb-3 relative">
                 <button onClick={() => handleRemoveItem('projects', index)} className="absolute top-2 right-2 p-1 text-slate-400 hover:text-red-400"><TrashIcon className="w-4 h-4" /></button>
@@ -313,7 +330,7 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
         <button onClick={() => handleAddItem<Project>('projects', {name: '', description: '', technologies: [], link: ''})} className="flex items-center space-x-2 text-sky-400 hover:text-sky-300 text-sm font-semibold"><PlusIcon className="w-4 h-4" /><span>Добавить проект</span></button>
       </Section>
 
-      <Section title="Образование" defaultOpen={false}>
+      <Section title="Образование" defaultOpen={false} isComplete={isEducationComplete}>
         <div className="space-y-4">
             <FormRow label="Степень/Квалификация">
                 <Input name="degree" value={profile.education.degree} onChange={handleEducationChange} placeholder="Например, Бакалавр наук, Компьютерные науки" />
@@ -327,7 +344,7 @@ export const VisualProfileBuilder: React.FC<VisualProfileBuilderProps> = ({ prof
         </div>
       </Section>
 
-      <Section title="Философия работы" defaultOpen={false}>
+      <Section title="Философия работы" defaultOpen={false} isComplete={isPhilosophyComplete}>
         <FormRow label="Ваш подход к работе">
             <Textarea name="philosophy" value={profile.philosophy} onChange={handleSimpleChange} />
         </FormRow>
